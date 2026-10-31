@@ -1003,3 +1003,43 @@ def test_overlap_refinery_justified_inplace_false() -> None:
     assert refined_chunks[0].context != ""
     assert refined_chunks[1].context != ""
     assert refined_chunks[2].context != ""
+
+
+def test_overlap_refinery_recursive_whitespace_context_is_verbatim() -> None:
+    """Recursive overlap context must be a verbatim slice of the source text.
+
+    Regression test for a bug where ``RecursiveLevel(whitespace=True)`` dropped
+    the spaces between words while rebuilding the overlap context, turning
+    "The responsible department reviews" into "Theresponsibledepartmentreviews".
+    """
+    tiktoken = pytest.importorskip("tiktoken")
+
+    from chonkie import RecursiveChunker
+    from chonkie.types import RecursiveLevel, RecursiveRules
+
+    text = (
+        "If additional information is required, the customer must provide the "
+        "missing documents within the specified period. The responsible department "
+        "reviews the updated application and records the outcome."
+    )
+    tokenizer = tiktoken.get_encoding("cl100k_base")
+    rules = RecursiveRules(
+        levels=[
+            RecursiveLevel(delimiters=[".", "!", "?"], include_delim="prev"),
+            RecursiveLevel(whitespace=True),
+        ]
+    )
+
+    chunks = RecursiveChunker(tokenizer=tokenizer, chunk_size=16, rules=rules).chunk(text)
+    refined = OverlapRefinery(
+        tokenizer=tokenizer,
+        context_size=6,
+        mode="recursive",
+        method="justified",
+        rules=rules,
+        merge=True,
+        inplace=False,
+    )(chunks)
+
+    for chunk in refined:
+        assert chunk.context in text, f"context is not a verbatim slice: {chunk.context!r}"

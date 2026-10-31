@@ -111,6 +111,10 @@ class OverlapRefinery(BaseRefinery):
         # At every delimiter, replace it with the sep
         if recursive_level.whitespace:
             splits = text.split(" ")
+            if recursive_level.include_delim == "next":
+                splits = [splits[0]] + [" " + s for s in splits[1:]]
+            else:
+                splits = [s + " " for s in splits[:-1]] + [splits[-1]]
         elif recursive_level.delimiters:
             if recursive_level.include_delim == "prev":
                 for delimiter in recursive_level.delimiters:
